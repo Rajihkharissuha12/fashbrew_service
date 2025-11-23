@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
+  schemas           = ["public"]
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  admin
+  influencer
+
+  @@schema("public")
+}
+
+enum ActionType {
+  login
+  create_ootd
+  update_ootd
+  delete_ootd
+  create_product
+  update_profile
+  click_affiliate
+
+  @@schema("public")
+}
+
+enum TargetType {
+  ootd
+  product
+  profile
+  system
+
+  @@schema("public")
+}
+
+enum PlatformType {
+  tiktok
+  shopee
+  tokopedia
+  other
+
+  @@schema("public")
+}
+
+enum EventType {
+  click
+  view
+  conversion
+
+  @@schema("public")
+}
+
+enum MediaType {
+  image
+  video
+  @@schema("public")
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+// Models
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  authUserId   String    @unique @db.Uuid
+  role         Role
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLogin    DateTime?
+
+  influencer   Influencer?
+  activities   ActivityLog[]
+
+  @@schema("public")
+  @@index([createdAt])
+}
+
+model Influencer {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @unique @db.Uuid
+  user         User      @relation(fields: [userId], references: [id])
+  name         String
+  handle       String    @unique
+  bio          String?
+  avatar       String?
+  banner       String?
+  socialLinks  Json?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  ootds        OotdPost[]
+  products     Product[]
+  analytics    Analytics[]
+
+  @@schema("public")
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model OotdPost {
+  id             String      @id @default(uuid()) @db.Uuid
+  number         Int         @unique @default(autoincrement())
+  influencerId   String      @db.Uuid
+  influencer     Influencer  @relation(fields: [influencerId], references: [id])
+  title          String
+  description    String?
+  urlPostInstagram String?
+  mood           Json?
+  isPublic       Boolean     @default(true)
+  viewCount      Int         @default(0)
+  likeCount      Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  ootdProducts   OotdProduct[]
+  analytics      Analytics[]
+  media          OotdMedia[] 
+
+
+  @@schema("public")
+  @@index([influencerId, createdAt])
+  @@index([isPublic])
+}
+
+model OotdMedia {
+  id           String     @id @default(uuid()) @db.Uuid
+  ootdId       String     @db.Uuid
+  ootd         OotdPost   @relation(fields: [ootdId], references: [id], onDelete: Cascade)
+  type         MediaType  // image | video
+  url          String     // link CDN/file publik
+  urlpublicid  String    // public id file CDN
+  isPrimary    Boolean    @default(false) // tandai media utama
+  originalSize Int
+  optimizedSize Int
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@schema("public")
+  @@index([ootdId, type])
+}
+
+model Product {
+  id             String     @id @default(uuid()) @db.Uuid
+  influencerId   String     @db.Uuid
+  influencer     Influencer @relation(fields: [influencerId], references: [id])
+  name           String
+  description    String?
+  price          Decimal?   // was Float?
+  category       String?
+  tags           Json?
+  image          String?
+  affiliateLink  String?
+  clicks         Int        @default(0)
+  lastUpdated    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  platforms      ProductPlatform[]
+  ootdProducts   OotdProduct[]
+  analytics      Analytics[]
+
+  @@schema("public")
+  @@index([influencerId, createdAt])
+  @@index([category])
+  @@index([name])
+}
+
+model ProductPlatform {
+  id          String       @id @default(uuid()) @db.Uuid
+  productId   String       @db.Uuid
+  product     Product      @relation(fields: [productId], references: [id])
+  platform    PlatformType
+  price       Decimal?
+  link        String?
+  clicks      Int          @default(0)
+  lastUpdated DateTime?
+
+  @@schema("public")
+  @@unique([productId, platform])
+  @@index([productId, platform])
+}
+
+model OotdProduct {
+  id          String     @id @default(uuid()) @db.Uuid
+  ootdId      String     @db.Uuid
+  ootd        OotdPost   @relation(fields: [ootdId], references: [id])
+  productId   String     @db.Uuid
+  product     Product    @relation(fields: [productId], references: [id])
+  note        String?
+  position    Int?
+  createdAt   DateTime   @default(now())
+
+  @@schema("public")
+  @@unique([ootdId, productId])
+  @@index([ootdId])
+  @@index([productId])
+}
+
+model ActivityLog {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @db.Uuid
+  user         User        @relation(fields: [userId], references: [id])
+  actionType   ActionType
+  targetId     String?     @db.Uuid
+  targetType   TargetType?
+  timestamp    DateTime    @default(now())
+  metadata     Json?
+
+  @@schema("public")
+  @@index([userId, timestamp])
+  @@index([actionType])
+}
+
+model Analytics {
+  id             String      @id @default(uuid()) @db.Uuid
+  influencerId   String      @db.Uuid
+  influencer     Influencer  @relation(fields: [influencerId], references: [id])
+  ootdId         String?     @db.Uuid
+  ootd           OotdPost?   @relation(fields: [ootdId], references: [id])
+  productId      String?     @db.Uuid
+  product        Product?    @relation(fields: [productId], references: [id])
+  platform       String?
+  event          EventType
+  timestamp      DateTime    @default(now())
+  metadata       Json?
+
+  @@schema("public")
+  @@index([influencerId, timestamp])
+  @@index([event, timestamp])
+  @@index([productId])
+  @@index([ootdId])
+}
