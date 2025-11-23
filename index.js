@@ -53,6 +53,10 @@ app.use("/api/products", productRouter);
 app.use("/api/users", userRouter);
 app.use("/api/influencers", influencerRouter);
 app.use("/api/ootds", ootdRoutes);
+// Root endpoint untuk menampilkan teks
+app.get("/", (req, res) => {
+  res.send("API FashBreew ready ✓");
+});
 
 // error handler harus paling akhir
 app.use(errorHandler);
