@@ -265,19 +265,97 @@ exports.listOotds = async (query) => {
 exports.getListOotdByUsername = async (username) => {
   console.log("GET LIST BY ", username);
   const ootd = await prisma.ootdPost.findMany({
-    where: { influencer: { handle: username } },
-    include: {
+    where: {
+      influencer: { handle: username },
+      // kalau ada field isPublic dan kamu hanya mau yang public:
+      // isPublic: true,
+    },
+    orderBy: { createdAt: "desc" }, // opsional, biar urut rapi
+    select: {
+      id: true,
+      influencerId: true,
+      title: true,
+      description: true,
+      urlPostInstagram: true,
+      mood: true,
+      isPublic: true,
+      viewCount: true,
+      likeCount: true,
+      createdAt: true,
+      updatedAt: true,
+      number: true,
+      media: {
+        select: {
+          id: true,
+          ootdId: true,
+          type: true,
+          url: true,
+          urlpublicid: true,
+          isPrimary: true,
+          originalSize: true,
+          optimizedSize: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
       ootdProducts: {
         orderBy: { position: "asc" },
-        include: { product: { include: { platforms: true } } },
+        select: {
+          id: true,
+          ootdId: true,
+          productId: true,
+          note: true,
+          position: true,
+          createdAt: true,
+          product: {
+            select: {
+              id: true,
+              influencerId: true,
+              name: true,
+              description: true,
+              price: true,
+              category: true,
+              tags: true,
+              image: true,
+              affiliateLink: true,
+              clicks: true,
+              lastUpdated: true,
+              createdAt: true,
+              updatedAt: true,
+              platforms: {
+                select: {
+                  id: true,
+                  productId: true,
+                  platform: true,
+                  price: true,
+                  link: true,
+                  clicks: true,
+                  lastUpdated: true,
+                },
+              },
+            },
+          },
+        },
       },
-      media: true,
-      influencer: true,
-      analytics: true,
+      influencer: {
+        select: {
+          id: true,
+          userId: true,
+          name: true,
+          handle: true,
+          bio: true,
+          avatar: true,
+          banner: true,
+          socialLinks: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+      // analytics: false -> tidak di-select, otomatis tidak diambil
     },
   });
-  console.log(ootd);
-  if (!ootd) {
+  if (!ootd || ootd.length === 0) {
     const err = new Error("OOTD tidak ditemukan");
     err.status = 404;
     throw err;
