@@ -95,12 +95,11 @@ async function createProduct(payload) {
 async function listProducts({ userId, q, page = 1, pageSize = 20 } = {}) {
   const take = Math.min(Number(pageSize) || 20, 100);
   const skip = Math.max((Number(page) || 1) - 1, 0) * take;
-  console.log("USER ID", userId);
   const where = {};
-  if (userId) {
-    const getInfluenderId = await getInfluencerByUserId(userId);
-    where.influencerId = getInfluenderId.id;
-  }
+  // if (userId) {
+  //   const getInfluenderId = await getInfluencerByUserId(userId);
+  //   where.influencerId = getInfluenderId.id;
+  // }
   if (q && String(q).trim()) {
     where.name = { contains: String(q).trim(), mode: "insensitive" };
   }

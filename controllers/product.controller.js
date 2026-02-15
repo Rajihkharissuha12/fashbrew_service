@@ -13,9 +13,10 @@ async function create(req, res, next) {
 }
 
 async function list(req, res, next) {
-  console.log("LIST PRODUCT");
   try {
+    console.log("GET PRODUCT");
     const { userId, q, page, pageSize } = req.query;
+    console.log(userId);
 
     const result = await svc.listProducts({
       userId,
@@ -23,7 +24,6 @@ async function list(req, res, next) {
       page: page ? Number(page) : undefined,
       pageSize: pageSize ? Number(pageSize) : undefined,
     });
-    console.log(result);
     res.json({
       success: true,
       data: result.items,

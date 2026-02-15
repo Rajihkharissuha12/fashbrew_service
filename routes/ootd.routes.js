@@ -11,10 +11,14 @@ const upload = multer({
 
 router.post("/", controller.createOotd);
 router.get("/", controller.listOotds);
+router.get("/search", controller.searchOotds);
 router.get("/:username", controller.getListOotdByUsername);
 router.get("/byid/:id", controller.getOotdById);
 router.put("/:id", controller.updateOotd);
 router.delete("/:id", controller.deleteOotd);
+
+// Get Mood by Username
+router.get("/mood/:username", controller.getMoodByUsername);
 
 // relasi OOTD-Product
 router.post("/:id/products", controller.attachProduct);

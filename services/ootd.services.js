@@ -52,7 +52,7 @@ exports.createOotd = async (body) => {
       return u.toString();
     } catch {
       return inputUrl.replace(/([?&])dl=\d+(&|$)/, (m, p1, p2) =>
-        p1 === "?" && p2 ? "?" : p2 ? p2 : ""
+        p1 === "?" && p2 ? "?" : p2 ? p2 : "",
       );
     }
   }
@@ -154,7 +154,7 @@ exports.createOotd = async (body) => {
       } catch (error) {
         console.error(`Upload media ${idx} gagal:`, error.message);
       }
-    })
+    }),
   );
 
   if (media.length === 0) {
@@ -261,9 +261,105 @@ exports.listOotds = async (query) => {
   return { data, meta: { total, page, pageSize } };
 };
 
+// SEARCH
+exports.searchOotds = async ({
+  q = "",
+  page = 1,
+  limit = 10,
+  sort = "createdDesc",
+  influencerId,
+}) => {
+  if (!influencerId) {
+    throw new Error("influencerId is required");
+  }
+
+  const pageInt = parseInt(page) || 1;
+  const limitInt = parseInt(limit) || 10;
+  const skip = (pageInt - 1) * limitInt;
+
+  const qNumber = !isNaN(q) && q !== "" ? Number(q) : null;
+
+  const where = {
+    influencerId,
+    OR:
+      q === "" || q === null
+        ? undefined
+        : [
+            {
+              title: {
+                contains: q,
+                mode: "insensitive",
+              },
+            },
+            qNumber !== null ? { number: qNumber } : {},
+          ],
+  };
+
+  let orderBy = { createdAt: "desc" };
+  if (sort === "createdAsc") orderBy = { createdAt: "asc" };
+  if (sort === "createdDesc") orderBy = { createdAt: "desc" };
+  if (sort === "numberAsc") orderBy = { number: "asc" };
+  if (sort === "numberDesc") orderBy = { number: "desc" };
+
+  const [items, total] = await Promise.all([
+    prisma.ootdPost.findMany({
+      where,
+      orderBy,
+      skip,
+      take: limitInt,
+
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        mood: true,
+        isPublic: true,
+        viewCount: true,
+        likeCount: true,
+        createdAt: true,
+        number: true,
+
+        media: {
+          select: {
+            id: true,
+            url: true,
+            type: true,
+            isPrimary: true,
+          },
+        },
+
+        ootdProducts: {
+          orderBy: { position: "asc" },
+          select: {
+            id: true,
+            note: true,
+            position: true,
+            product: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+
+    prisma.ootdPost.count({ where }),
+  ]);
+
+  return {
+    items,
+    pagination: {
+      page: pageInt,
+      pageSize: limitInt, // Tambahkan pageSize/limit
+      total,
+      totalPages: Math.ceil(total / limitInt), // Optional tapi bagus untuk di-include
+    },
+  };
+};
+
 // List Ootd by Username
 exports.getListOotdByUsername = async (username) => {
-  console.log("GET LIST BY ", username);
   const ootd = await prisma.ootdPost.findMany({
     where: {
       influencer: { handle: username },
@@ -273,86 +369,23 @@ exports.getListOotdByUsername = async (username) => {
     orderBy: { createdAt: "desc" }, // opsional, biar urut rapi
     select: {
       id: true,
-      influencerId: true,
       title: true,
-      description: true,
       urlPostInstagram: true,
       mood: true,
       isPublic: true,
-      viewCount: true,
-      likeCount: true,
-      createdAt: true,
-      updatedAt: true,
       number: true,
       media: {
         select: {
-          id: true,
-          ootdId: true,
           type: true,
           url: true,
-          urlpublicid: true,
           isPrimary: true,
-          originalSize: true,
-          optimizedSize: true,
-          createdAt: true,
-          updatedAt: true,
         },
       },
-      ootdProducts: {
-        orderBy: { position: "asc" },
+      _count: {
         select: {
-          id: true,
-          ootdId: true,
-          productId: true,
-          note: true,
-          position: true,
-          createdAt: true,
-          product: {
-            select: {
-              id: true,
-              influencerId: true,
-              name: true,
-              description: true,
-              price: true,
-              category: true,
-              tags: true,
-              image: true,
-              affiliateLink: true,
-              clicks: true,
-              lastUpdated: true,
-              createdAt: true,
-              updatedAt: true,
-              platforms: {
-                select: {
-                  id: true,
-                  productId: true,
-                  platform: true,
-                  price: true,
-                  link: true,
-                  clicks: true,
-                  lastUpdated: true,
-                },
-              },
-            },
-          },
+          ootdProducts: true,
         },
       },
-      influencer: {
-        select: {
-          id: true,
-          userId: true,
-          name: true,
-          handle: true,
-          bio: true,
-          avatar: true,
-          banner: true,
-          socialLinks: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      },
-      // analytics: false -> tidak di-select, otomatis tidak diambil
     },
   });
   if (!ootd || ootd.length === 0) {
@@ -431,7 +464,7 @@ exports.deleteOotd = async (id) => {
   await deleteBulkFromCloudinary(
     findMedia.map((item) => {
       return item.urlpublicid;
-    })
+    }),
   );
 
   await prisma.$transaction([
@@ -452,6 +485,18 @@ exports.deleteOotd = async (id) => {
   // });
 
   return deleted;
+};
+
+// Get Mood by Username
+exports.getMoodByUsername = async (username) => {
+  const posts = await prisma.ootdPost.findMany({
+    where: { influencer: { handle: username } },
+    select: { mood: true }, // ambil mood saja biar ringan
+  });
+
+  const uniqueMoods = [...new Set(posts.flatMap((p) => p.mood))];
+
+  return uniqueMoods;
 };
 
 // RELASI: tambah produk ke OOTD
@@ -561,7 +606,7 @@ exports.logClick = async (body) => {
         event: EventType.click,
         metadata: { link },
       },
-    })
+    }),
   );
 
   if (productId && platform) {
@@ -569,7 +614,7 @@ exports.logClick = async (body) => {
       prisma.productPlatform.updateMany({
         where: { productId, platform }, // enum PlatformType di schema
         data: { clicks: { increment: 1 } },
-      })
+      }),
     );
   }
   if (productId) {
@@ -577,7 +622,7 @@ exports.logClick = async (body) => {
       prisma.product.update({
         where: { id: productId },
         data: { clicks: { increment: 1 }, lastUpdated: new Date() },
-      })
+      }),
     );
   }
 
@@ -634,7 +679,7 @@ exports.addMedia = async (idootd, mediaFiles, body) => {
           originalSize: file.size,
           optimizedSize: uploadResult.bytes || null,
         };
-      })
+      }),
     );
 
     // Simpan hasil ke DB

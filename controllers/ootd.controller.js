@@ -24,8 +24,41 @@ exports.listOotds = async (req, res) => {
   }
 };
 
+exports.searchOotds = async (req, res) => {
+  try {
+    const {
+      q = "",
+      page = 1,
+      limit = 10,
+      sort = "createdDesc",
+      influencer_id,
+    } = req.query;
+
+    if (!influencer_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Parameter influencer_id wajib diisi",
+      });
+    }
+
+    const data = await service.searchOotds({
+      q,
+      page,
+      limit,
+      sort,
+      influencerId: influencer_id,
+    });
+
+    return res.json(data);
+  } catch (e) {
+    return res.status(e.status || 500).json({
+      success: false,
+      message: e.message || "Gagal melakukan pencarian OOTD",
+    });
+  }
+};
+
 exports.getListOotdByUsername = async (req, res) => {
-  console.log("LIST DATA OOTD");
   try {
     const data = await service.getListOotdByUsername(req.params.username);
     return res.json({ data });
@@ -59,6 +92,18 @@ exports.updateOotd = async (req, res) => {
   }
 };
 
+// Get Mood by Username
+exports.getMoodByUsername = async (req, res) => {
+  try {
+    const moods = await service.getMoodByUsername(req.params.username);
+    return res.json({ moods });
+  } catch (e) {
+    return res
+      .status(e.status || 500)
+      .json({ message: e.message || "Gagal mengambil mood OOTD" });
+  }
+};
+
 exports.deleteOotd = async (req, res) => {
   try {
     const data = await service.deleteOotd(req.params.id);
@@ -85,7 +130,7 @@ exports.detachProduct = async (req, res) => {
   try {
     const data = await service.detachProduct(
       req.params.id,
-      req.params.productId
+      req.params.productId,
     );
     return res.json({ message: "Produk dihapus dari OOTD", data });
   } catch (e) {
