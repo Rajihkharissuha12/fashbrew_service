@@ -1,5 +1,8 @@
 const { prisma } = require("../prisma");
-const { getInfluencerByUserId } = require("./influencer.service");
+const {
+  getInfluencerByUserId,
+  getInfluencerById,
+} = require("./influencer.service");
 const { getUserById } = require("./user.service");
 
 // Helper: validasi required
@@ -60,7 +63,8 @@ async function createProduct(payload) {
   assertRequired(userId, "userId");
   assertRequired(name, "name");
 
-  const influencerId = await getInfluencerByUserId(userId);
+  const influencerId = await getInfluencerById(userId);
+  const getallProduct = await prisma.product.findMany();
 
   const created = await prisma.product.create({
     data: {
@@ -73,6 +77,7 @@ async function createProduct(payload) {
       image: image ?? null,
       affiliateLink: affiliateLink ?? null,
       lastUpdated: new Date(),
+      clicks: Number(getallProduct.length) + 1,
       platforms:
         Array.isArray(platforms) && platforms.length
           ? {
