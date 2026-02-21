@@ -150,6 +150,7 @@ async function getProductByUsername(username) {
         handle: username,
       },
     },
+    orderBy: { createdAt: "desc" },
     include: {
       platforms: true,
     },
