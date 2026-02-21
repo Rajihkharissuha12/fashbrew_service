@@ -111,7 +111,7 @@ async function listProducts({ userId, q, page = 1, pageSize = 20 } = {}) {
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      orderBy: { clicks: "asc" },
+      orderBy: { createdAt: "desc" },
       skip,
       take,
       include: {
